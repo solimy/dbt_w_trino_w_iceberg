@@ -1,0 +1,7 @@
+# Python
+.venv
+
+# DBT
+dbt_packages
+target
+logs

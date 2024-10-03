@@ -1,0 +1,10 @@
+default:
+  target: default
+  outputs:
+    default:
+      type: trino
+      host: localhost
+      port: 8080
+      database: iceberg
+      schema: dbt
+      user: admin

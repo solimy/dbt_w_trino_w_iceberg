@@ -1,0 +1,47 @@
+services:
+
+
+  postgres:
+    image: postgres
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: metastore_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+      - /Users/hadrien.daures/Code/me/dbt_w_trino_w_iceberg/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+
+  minio:
+    image: quay.io/minio/minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+
+  minio_init:
+      image: minio/mc
+      depends_on:
+        - minio
+      entrypoint: >
+        /bin/sh -c "
+        /usr/bin/mc config host add myminio http://minio:9000 minioadmin minioadmin;
+        /usr/bin/mc mb myminio/data;
+        exit 0;
+        "
+
+  trino:
+    image: trinodb/trino
+    ports:
+      - "8080:8080"
+    volumes:
+      - /Users/hadrien.daures/Code/me/dbt_w_trino_w_iceberg/dbt/iceberg.properties:/etc/trino/catalog/iceberg.properties
+    environment:
+      DEBUG: "true"
+
+volumes:
+  pg-data:
+  minio-data:
