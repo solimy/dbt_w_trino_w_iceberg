@@ -3,6 +3,7 @@ services:
 
   postgres:
     image: postgres
+    user: "${UID}:${GID}"
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin
@@ -10,8 +11,9 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - pg-data:/var/lib/postgresql/data
-      - /Users/hadrien.daures/Code/me/dbt_w_trino_w_iceberg/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+      - ${PWD}/postgres_volume/:/var/lib/postgresql/data/
+      - ${PWD}/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+
 
   minio:
     image: quay.io/minio/minio
@@ -20,7 +22,8 @@ services:
       - "9000:9000"
       - "9001:9001"
     volumes:
-      - minio-data:/data
+      - ${PWD}/minio_volume/:/data/
+
 
   minio_init:
       image: minio/mc
@@ -33,15 +36,12 @@ services:
         exit 0;
         "
 
+
   trino:
     image: trinodb/trino
     ports:
       - "8080:8080"
     volumes:
-      - /Users/hadrien.daures/Code/me/dbt_w_trino_w_iceberg/dbt/iceberg.properties:/etc/trino/catalog/iceberg.properties
+      - ${PWD}/iceberg.properties:/etc/trino/catalog/iceberg.properties
     environment:
       DEBUG: "true"
-
-volumes:
-  pg-data:
-  minio-data:
