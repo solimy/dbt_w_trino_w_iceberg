@@ -19,3 +19,19 @@ models:
         data_tests:
           - unique
           - not_null
+
+seeds:
+  - name: country
+    description: "A seed file for country data"
+    config:
+      schema: seeds
+    columns:
+      - name: country_code
+        description: "The country code"
+        data_tests:
+          - unique
+          - not_null
+      - name: country_name
+        description: "The country name"
+        data_tests:
+          - not_null

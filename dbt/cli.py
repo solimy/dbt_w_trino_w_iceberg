@@ -1,5 +1,8 @@
+import sys
+
 from pyiceberg.catalog.sql import SqlCatalog
 from pyiceberg.catalog import load_catalog
+
 
 catalog = SqlCatalog(
    "test",
@@ -12,4 +15,14 @@ catalog = SqlCatalog(
    },
 )
 
-print(catalog.load_table("dbt.my_first_dbt_model").scan().to_pandas())
+
+match sys.argv[1]:
+    case "list":
+        match len(sys.argv):
+            case 2:
+                print(catalog.list_namespaces())
+            case 3:
+                print(catalog.list_tables(sys.argv[2]))
+    case "scan":
+        assert len(sys.argv) == 3
+        print(catalog.load_table(sys.argv[2]).scan().to_pandas())
