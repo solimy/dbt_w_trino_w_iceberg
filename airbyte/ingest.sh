@@ -1,17 +1,25 @@
-docker run \
---rm \
---volume $PWD/:/local/ \
-airbyte/source-file:latest \
-read \
---config=/local/source.json \
---catalog=/local/catalog.json \
-| \
-docker run \
---rm \
--i \
---volume $PWD/:/local/ \
---network host \
-airbyte/destination-iceberg:latest \
-write \
---config /local/destination.json \
---catalog /local/catalog.json \
+#!/bin/bash
+
+read_data() {
+    docker run \
+    --rm \
+    --volume $PWD/:/local/ \
+    airbyte/source-file:latest \
+    read \
+    --config=/local/source.json \
+    --catalog=/local/catalog.json
+}
+
+write_data() {
+    docker run \
+    --rm \
+    -i \
+    --volume $PWD/:/local/ \
+    --network host \
+    airbyte/destination-iceberg:latest \
+    write \
+    --config /local/destination.json \
+    --catalog /local/catalog.json
+}
+
+read_data | write_data
