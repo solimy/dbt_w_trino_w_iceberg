@@ -7,4 +7,4 @@ default:
       port: 8080
       database: iceberg
       schema: dbt
-      user: admin
+      user: dbt

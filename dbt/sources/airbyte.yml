@@ -1,0 +1,6 @@
+sources:
+  - name: airbyte
+    database: iceberg
+    schema: airbyte
+    tables:
+      - name: airbyte_raw_data

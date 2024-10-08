@@ -1,0 +1,56 @@
+{
+    "streams": [
+        {
+            "sync_mode": "full_refresh",
+            "destination_sync_mode": "overwrite",
+            "stream": {
+                "name": "data",
+                "supported_sync_modes": [
+                    "full_refresh"
+                ],
+                "json_schema": {
+                    "$schema": "http://json-schema.org/draft-07/schema#",
+                    "type": "object",
+                    "properties": {
+                        "id": {
+                            "type": [
+                                "number",
+                                "null"
+                            ]
+                        },
+                        "first_name": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        },
+                        "last_name": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        },
+                        "email": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        },
+                        "gender": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        },
+                        "ip_address": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+    ]
+}

@@ -1,0 +1,9 @@
+{
+    "dataset_name": "data",
+    "format": "csv",
+    "reader_options": "{\"sep\": \",\"}",
+    "url": "/local/data.csv",
+    "provider": {
+        "storage": "local"
+    }
+}
