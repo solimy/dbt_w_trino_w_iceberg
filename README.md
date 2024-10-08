@@ -85,7 +85,7 @@ C4Context
 
     Boundary(airbyte_dir, "dbt_w_trino_w_iceberg/airbyte") {
         SystemDb(airbyte_data, "data.csv")
-        System(airbyte_src, "source-iceberg")
+        System(airbyte_src, "source-csv")
         System(airbyte_dest, "destination-iceberg")
 
         Rel(airbyte_src, airbyte_data, "Read data")
