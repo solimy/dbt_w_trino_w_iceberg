@@ -10,7 +10,8 @@
 {{
     config(
         materialized='table',
-        alias='my_first_dbt_model'
+        alias='my_first_dbt_model',
+        persist_docs={"relation": true, "columns": true},
     )
 }}
 

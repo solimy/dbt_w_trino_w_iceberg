@@ -1,0 +1,65 @@
+services:
+
+  postgres:
+    image: postgres:13.16
+    user: "${UID}:${GID}"
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: metastore_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - ${PWD}/postgres_volume/:/var/lib/postgresql/data/
+      - ${PWD}/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+
+  nessie:
+    image: projectnessie/nessie:0.76.6
+    ports:
+      - "19120:19120"
+    environment:
+      NESSIE_VERSION_STORE_TYPE: JDBC
+      QUARKUS_DATASOURCE_JDBC_URL: jdbc:postgresql://postgres:5432/metastore_db
+      QUARKUS_DATASOURCE_USERNAME: admin
+      QUARKUS_DATASOURCE_PASSWORD: admin
+
+
+  minio:
+    image: quay.io/minio/minio:RELEASE.2024-10-13T13-34-11Z
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - ${PWD}/minio_volume/:/data/
+    healthcheck:
+        test: ["CMD", "curl", "-f", "http://localhost:9001"]
+        interval: 2s
+        timeout: 2s
+        retries: 5
+
+
+  minio_init:
+      image: minio/mc:RELEASE.2024-10-08T09-37-26Z
+      depends_on:
+        minio:
+          condition: service_healthy
+      entrypoint: >
+        /bin/sh -c "
+        /usr/bin/mc config host add myminio http://minio:9000 minioadmin minioadmin;
+        /usr/bin/mc mb myminio/warehouse;
+        exit 0;
+        "
+
+
+  trino:
+    image: trinodb/trino:463
+    ports:
+      - "8080:8080"
+    volumes:
+      # if using pg
+      - ${PWD}/iceberg-pg.properties:/etc/trino/catalog/iceberg.properties
+      # if using nessie
+      # - ${PWD}/iceberg-nessie.properties:/etc/trino/catalog/iceberg.properties
+    environment:
+      DEBUG: "true"

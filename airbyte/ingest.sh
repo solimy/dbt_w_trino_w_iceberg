@@ -4,7 +4,7 @@ read_data() {
     docker run \
     --rm \
     --volume $PWD/:/local/ \
-    airbyte/source-file:latest \
+    airbyte/source-file:0.5.13 \
     read \
     --config=/local/source.json \
     --catalog=/local/catalog.json
@@ -16,7 +16,7 @@ write_data() {
     -i \
     --volume $PWD/:/local/ \
     --network host \
-    airbyte/destination-iceberg:latest \
+    airbyte/destination-iceberg:0.2.2 \
     write \
     --config /local/destination.json \
     --catalog /local/catalog.json

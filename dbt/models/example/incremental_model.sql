@@ -3,6 +3,7 @@
 {{
     config(
         materialized='incremental',
+        views_enabled=False,
         alias='incremental_model',
     )
 }}
