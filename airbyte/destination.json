@@ -1,12 +1,7 @@
 {
     "catalog_config": {
-        "catalog_type": "Jdbc",
-        "database": "airbyte",
-        "jdbc_url": "jdbc:postgresql://localhost:5432/metastore_db",
-        "username": "admin",
-        "password": "admin",
-        "ssl": false,
-        "catalog_schema": "public"
+        "catalog_type": "Rest",
+        "rest_uri": "http://127.0.0.1:19120/"
     },
     "storage_config": {
         "storage_type": "S3",

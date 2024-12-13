@@ -1,0 +1,7 @@
+base_cur,quote_cur,rate
+EUR,EUR,1
+EUR,GBP,0.7
+EUR,USD,1.3
+GBP,GBP,1
+USD,GBP,0.5
+USD,USD,1

@@ -12,7 +12,6 @@ read_data() {
 
 write_data() {
     docker run \
-    --rm \
     -i \
     --volume $PWD/:/local/ \
     --network host \

@@ -1,0 +1,8 @@
+version: 2
+
+models:
+    - name: your_model_name
+      latest_version: "1.0"
+      versions:
+      - "1.0":
+          description: "A description of your model version"

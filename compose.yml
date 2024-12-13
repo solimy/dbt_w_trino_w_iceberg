@@ -13,17 +13,6 @@ services:
       - ${PWD}/postgres_volume/:/var/lib/postgresql/data/
       - ${PWD}/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
 
-  nessie:
-    image: projectnessie/nessie:0.76.6
-    ports:
-      - "19120:19120"
-    environment:
-      NESSIE_VERSION_STORE_TYPE: JDBC
-      QUARKUS_DATASOURCE_JDBC_URL: jdbc:postgresql://postgres:5432/metastore_db
-      QUARKUS_DATASOURCE_USERNAME: admin
-      QUARKUS_DATASOURCE_PASSWORD: admin
-
-
   minio:
     image: quay.io/minio/minio:RELEASE.2024-10-13T13-34-11Z
     command: server /data --console-address ":9001"
@@ -57,9 +46,6 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      # if using pg
-      - ${PWD}/iceberg-pg.properties:/etc/trino/catalog/iceberg.properties
-      # if using nessie
-      # - ${PWD}/iceberg-nessie.properties:/etc/trino/catalog/iceberg.properties
+      - ${PWD}/iceberg.properties:/etc/trino/catalog/iceberg.properties
     environment:
       DEBUG: "true"
