@@ -4,6 +4,11 @@
 - Python 3.12
 - docker-compose
 
+## Setup the mount point for docker-compose
+Create a directory to mount the docker-compose volumes
+```bash
+mkdir minio_volume postgres_volume
+```
 
 ## Start trino server
 Run the following command to start the trino server
@@ -29,12 +34,25 @@ cd dbt_w_trino_w_iceberg/dbt
 dbt run
 ```
 
-## Check results with cli.py
+## Check results
 ```bash
-cd dbt_w_trino_w_iceberg/dbt
-python cli.py list
-python cli.py list dbt
-python cli.py scan dbt.incremental_model
+docker run -it --rm --network host trinodb/trino:463 trino --catalog iceberg http://localhost:8080
+```
+
+```sql
+trino> select * from dbt.any_to_any_v1_0;
+ from_currency | to_currency |        rate        
+---------------+-------------+--------------------
+ EUR           | EUR         |                1.0 
+ GBP           | EUR         | 1.4285714285714286 
+ USD           | EUR         | 0.7692307692307692 
+ EUR           | GBP         |                0.7 
+ GBP           | GBP         |                1.0 
+ USD           | GBP         | 0.5384615384615384 
+ EUR           | USD         |                1.3 
+ GBP           | USD         | 1.8571428571428574 
+ USD           | USD         |                1.0 
+(9 rows)
 ```
 
 ## Run airbyte integration
@@ -56,13 +74,12 @@ C4Context
 
     Person_Ext(user, "User")
     Rel(user, dbt, "dbt run")
-    Rel(user, cli, "python cli.py ...")
+    Rel(user, cli, "trino cli ...")
 
     Boundary(dbt_dir, "dbt_w_trino_w_iceberg/dbt") {
         System(dbt, "DBT", "Runs the queries")
-        System(cli, "CLI", "CLI to interact with iceberg")
-        Rel(cli, minio, "Read data")
-        Rel(cli, postgres, "Read metadata")
+        System(cli, "Trino cli", "Trino cli to interact with iceberg")
+        Rel(cli, trino, "Query")
 
         System(dbt, "DBT", "execute query")
         Rel(dbt, trino, "Query")
