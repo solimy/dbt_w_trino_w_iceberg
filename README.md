@@ -7,6 +7,7 @@
 ## Setup the mount point for docker-compose
 Create a directory to mount the docker-compose volumes
 ```bash
+cd dbt_w_trino_w_iceberg/
 mkdir minio_volume postgres_volume
 ```
 
