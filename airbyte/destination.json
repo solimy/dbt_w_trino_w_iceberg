@@ -1,7 +1,12 @@
 {
     "catalog_config": {
-        "catalog_type": "Rest",
-        "rest_uri": "http://127.0.0.1:19120/"
+        "catalog_type": "Jdbc",
+        "jdbc_url": "jdbc:postgresql://localhost:5432/metastore_db",
+        "database": "airbyte",
+        "username": "admin",
+        "password": "admin",
+        "catalog_schema": "public",
+        "ssl": false
     },
     "storage_config": {
         "storage_type": "S3",
@@ -9,7 +14,7 @@
         "secret_access_key": "minioadmin",
         "s3_endpoint": "http://localhost:9000",
         "s3_bucket_region": "eu-west-1",
-        "s3_warehouse_uri": "s3://data"
+        "s3_warehouse_uri": "s3://warehouse"
     },
     "format_config": {
         "format": "Parquet"
