@@ -2,19 +2,27 @@ version: 2
 
 models:
   - name: anytoany
-    latest_version: 1.0
+    latest_version: 2.0
     config:
       materialized: table
       alias: any_to_any
       contract:
         enforced: true
+    columns:
+      - name: from_currency
+        description: "The currency to convert from"
+        data_type: string
+      - name: to_currency
+        description: "The currency to convert to"
+        data_type: string
+      - name: rate
+        description: "The conversion rate"
+        data_type: float
     versions:
       - v: 1.0
         description: "A description of your model version"
         columns:
-          - name: from_currency
-            data_type: string
-          - name: to_currency
-            data_type: string
-          - name: rate
-            data_type: float
+          - include: all
+      - v: 2.0
+        columns:
+          - include: all
