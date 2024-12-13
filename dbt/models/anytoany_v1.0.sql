@@ -1,10 +1,3 @@
-{{
-    config(
-        materialized='table',
-        alias='any_to_any'
-    )
-}}
-
 with eur_to_any as (
     select
         quote_cur as currency,

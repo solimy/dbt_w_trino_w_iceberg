@@ -1,8 +1,20 @@
 version: 2
 
 models:
-    - name: your_model_name
-      latest_version: "1.0"
-      versions:
-      - "1.0":
-          description: "A description of your model version"
+  - name: anytoany
+    latest_version: 1.0
+    config:
+      materialized: table
+      alias: any_to_any
+      contract:
+        enforced: true
+    versions:
+      - v: 1.0
+        description: "A description of your model version"
+        columns:
+          - name: from_currency
+            data_type: string
+          - name: to_currency
+            data_type: string
+          - name: rate
+            data_type: float
