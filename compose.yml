@@ -47,5 +47,6 @@ services:
       - "8080:8080"
     volumes:
       - ${PWD}/iceberg.properties:/etc/trino/catalog/iceberg.properties
+      - ${PWD}/config.properties:/etc/trino/config.properties
     environment:
       DEBUG: "true"
