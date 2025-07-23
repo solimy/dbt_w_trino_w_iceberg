@@ -9,3 +9,6 @@ logs
 # Docker
 minio_volume
 postgres_volume
+
+# Mac
+.DS_Store
