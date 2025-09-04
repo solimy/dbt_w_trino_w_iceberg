@@ -5,6 +5,6 @@ default:
       type: trino
       host: localhost
       port: 8080
-      database: iceberg
+      database: mydata
       schema: dbt
       user: dbt

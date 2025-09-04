@@ -46,7 +46,16 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ${PWD}/iceberg.properties:/etc/trino/catalog/iceberg.properties
-      - ${PWD}/config.properties:/etc/trino/config.properties
+      - ${PWD}/trino/mydata.properties:/etc/trino/catalog/mydata.properties
+      - ${PWD}/trino/config.properties:/etc/trino/config.properties
+      - ${PWD}/trino/access-control.properties:/etc/trino/access-control.properties
     environment:
       DEBUG: "true"
+
+  opa:
+    image: openpolicyagent/opa:1.8.0-istio-static
+    command: run --server --addr :8181 --set=decision_logs.console=true --watch /etc/opa/policies/
+    ports:
+      - "8181:8181"
+    volumes:
+      - ${PWD}/opa/policies/:/etc/opa/policies/
