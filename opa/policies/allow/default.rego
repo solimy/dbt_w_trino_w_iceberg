@@ -1,3 +1,3 @@
 package trino
 
-default allow := false
+default allow := true

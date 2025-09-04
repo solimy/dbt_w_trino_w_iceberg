@@ -1,8 +1,8 @@
 # Getting started
 
 ## Preriquisites
-- Python 3.12
-- docker-compose
+- [uv](https://docs.astral.sh/uv/)
+- [docker-compose](https://rancherdesktop.io/)
 
 ## Setup the mount point for docker-compose
 Create a directory to mount the docker-compose volumes
@@ -22,22 +22,19 @@ env UID=${UID} GID=${GID} docker compose up
 Run the following command to setup the dbt environment
 ```bash
 cd dbt_w_trino_w_iceberg/dbt
-python3.12 -m venv --prompt dbt-trino .venv
-source dbt/.venv/bin/activate
-pip install poetry
-poetry install
+uv run dbt deps
 ```
 
 ## Run dbt
 Run the following command to run dbt
 ```bash
 cd dbt_w_trino_w_iceberg/dbt
-dbt run
+uv run dbt build
 ```
 
 ## Check results
 ```bash
-docker run -it --rm --network host trinodb/trino:463 trino --catalog iceberg http://localhost:8080
+docker run -it --rm --network host trinodb/trino:463 trino --catalog mydata http://localhost:8080
 ```
 
 ```sql
@@ -92,6 +89,10 @@ C4Context
             System(trino, "Trino", "Query engine")
         }
 
+        Boundary(security, "Security", "Manages security") {
+            System(opa, "OPA", "Open Policy Agent")
+        }
+
         Boundary(storage, "Storage", "Stores data and metadata") {
             SystemDb(postgres, "Postgres", "Stores Iceberg metadata")
             System(minio, "MinIO", "Stores Iceberg data files")
@@ -99,6 +100,7 @@ C4Context
 
         Rel(trino, postgres, "Stores metadata")
         Rel(trino, minio, "Stores data")
+        Rel(trino, opa, "Query policies")
     }
 
     Boundary(airbyte_dir, "dbt_w_trino_w_iceberg/airbyte") {
