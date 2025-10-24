@@ -1,26 +1,24 @@
 services:
 
   postgres:
-    image: postgres:13.16
     user: "${UID}:${GID}"
+    image: postgres:13.16
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin
       POSTGRES_DB: metastore_db
-    ports:
-      - "5432:5432"
     volumes:
-      - ${PWD}/postgres_volume/:/var/lib/postgresql/data/
-      - ${PWD}/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+      - ${PWD}/rw_volumes/postgres_volume/:/var/lib/postgresql/data/
+      - ${PWD}/config/postgres/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
 
   minio:
     image: quay.io/minio/minio:RELEASE.2024-10-13T13-34-11Z
     command: server /data --console-address ":9001"
-    ports:
-      - "9000:9000"
-      - "9001:9001"
+    environment:
+      MINIO_SERVER_URL: https://minio.127.0.0.1.nip.io
+      MINIO_BROWSER_REDIRECT_URL: https://console.minio.127.0.0.1.nip.io
     volumes:
-      - ${PWD}/minio_volume/:/data/
+      - ${PWD}/rw_volumes/minio_volume/:/data/
     healthcheck:
         test: ["CMD", "curl", "-f", "http://localhost:9001"]
         interval: 2s
@@ -43,19 +41,62 @@ services:
 
   trino:
     image: trinodb/trino:463
-    ports:
-      - "8080:8080"
     volumes:
-      - ${PWD}/trino/mydata.properties:/etc/trino/catalog/mydata.properties
-      - ${PWD}/trino/config.properties:/etc/trino/config.properties
-      - ${PWD}/trino/access-control.properties:/etc/trino/access-control.properties
+      - ${PWD}/config/trino/start.sh:/usr/local/bin/start.sh
+      - ${PWD}/config/trino/catalog/:/etc/trino/catalog/
+      - ${PWD}/config/trino/config.properties:/etc/trino/config.properties
+      - ${PWD}/config/trino/access-control.properties:/etc/trino/access-control.properties
+      - ${PWD}/config/trino/log.properties:/etc/trino/log.properties
+      - ${PWD}/rw_volumes/caddy_data/:/caddy_data/:ro
     environment:
       DEBUG: "true"
+    depends_on:
+      - minio
+      - postgres
+      - keycloak
+      - opa
+      - caddy
+    entrypoint: ["/bin/sh","-eu","/usr/local/bin/start.sh"]
+
 
   opa:
     image: openpolicyagent/opa:1.8.0-istio-static
     command: run --server --addr :8181 --set=decision_logs.console=true --watch /etc/opa/policies/
-    ports:
-      - "8181:8181"
     volumes:
-      - ${PWD}/opa/policies/:/etc/opa/policies/
+      - ${PWD}/config/opa/policies/:/etc/opa/policies/
+
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.3.3
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_PROXY_HEADERS: xforwarded
+      KC_HOSTNAME: auth.127.0.0.1.nip.io
+    command: [start-dev]
+    volumes:
+      - ${PWD}/rw_volumes/keycloak_data/:/opt/keycloak/data/
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/realms/Trino/.well-known/openid-configuration"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+
+  caddy:
+    image: caddy:2.9
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ${PWD}/config/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${PWD}/rw_volumes/caddy_data/:/data/
+      - ${PWD}/rw_volumes/caddy_config/:/config/
+    networks:
+      default:
+        aliases:
+          - auth.127.0.0.1.nip.io
+          - trino.127.0.0.1.nip.io
+          - minio.127.0.0.1.nip.io
+          - console.minio.127.0.0.1.nip.io
+          - opa.127.0.0.1.nip.io

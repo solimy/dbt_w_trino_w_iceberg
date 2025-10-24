@@ -21,4 +21,4 @@ write_data() {
     --catalog /local/catalog.json
 }
 
-read_data | write_data
+read_data #| write_data

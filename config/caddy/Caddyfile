@@ -1,0 +1,33 @@
+{
+  # Local certificates signed by Caddy’s internal CA
+  local_certs
+}
+
+# ---------- MinIO ----------
+minio.127.0.0.1.nip.io {
+  encode gzip
+  reverse_proxy minio:9000
+}
+
+console.minio.127.0.0.1.nip.io {
+  encode gzip
+  reverse_proxy minio:9001
+}
+
+# ---------- Trino ----------
+trino.127.0.0.1.nip.io {
+  encode gzip
+  reverse_proxy trino:8080
+}
+
+# ---------- Keycloak ----------
+auth.127.0.0.1.nip.io {
+  encode gzip
+  reverse_proxy keycloak:8080
+}
+
+# ---------- OPA ----------
+opa.127.0.0.1.nip.io {
+  encode gzip
+  reverse_proxy opa:8181
+}

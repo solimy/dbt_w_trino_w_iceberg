@@ -1,0 +1,12 @@
+default:
+  target: default
+  outputs:
+    default:
+      type: trino
+      host: trino.127.0.0.1.nip.io
+      port: 443
+      database: DATABASE
+      schema: dbt
+      method: oauth
+      verify: false
+

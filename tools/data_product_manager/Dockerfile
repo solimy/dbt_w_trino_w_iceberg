@@ -1,0 +1,1 @@
+AUTO-[Last Update]	Client	Subject	Stage	Proba (%)	Durée mission	Preparation Start Date	Starting	Junior	Senior	Lead	Commentaire	DS mission duration	Lien to the deck	Leads DS 	Associated GT Member 	Contribution type	Preparation End Date	Client Meeting	Total ETP
