@@ -1,3 +1,5 @@
+# *⚠ OUTDATED README ⚠* -- new version coming soon (or late)
+
 # Getting started
 
 ## Preriquisites
