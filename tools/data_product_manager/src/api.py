@@ -140,7 +140,7 @@ class KeycloakMasterBootstrapData(pydantic.BaseModel):
     )] = "REPLACE_WITH_SECURE_SECRET"
     trino_redirect_uris: Annotated[Optional[List[str]], pydantic.Field(
         description="List of redirect URIs for the Trino client",
-    )] = None
+    )] = ["https://trino.127.0.0.1.nip.io/oauth2/callback"]
     trino_post_logout_uris: Annotated[str, pydantic.Field(
         description="Post-logout redirect URIs for the Trino client",
     )] = "https://trino.127.0.0.1.nip.io/*"

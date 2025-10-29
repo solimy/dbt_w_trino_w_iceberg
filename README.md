@@ -36,7 +36,7 @@ uv run dbt build
 
 ## Check results
 ```bash
-docker run -it --rm --network host trinodb/trino:463 trino --catalog mydata http://localhost:8080
+trino --catalog mydata https://trino.127.0.0.1.nip.io --external-authentication --insecure --external-authentication-redirect-handler DESKTOP_OPEN
 ```
 
 ```sql
