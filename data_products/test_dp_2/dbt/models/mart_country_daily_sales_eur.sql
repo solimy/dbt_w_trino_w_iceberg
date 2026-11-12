@@ -1,4 +1,4 @@
-{{ config(materialized='view') }}
+{{ config(materialized=var('platform_materialization', 'view')) }}
 
 with f as (
     select * from {{ ref('fct_sales_eur') }}
@@ -13,4 +13,4 @@ select
     count(*) as transactions
 from f
 group by 1, 2, 3, 4
-order by sales_year, sales_month, country_code;
+order by sales_year, sales_month, country_code

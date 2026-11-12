@@ -11,32 +11,38 @@ services:
       - ${PWD}/rw_volumes/postgres_volume/:/var/lib/postgresql/data/
       - ${PWD}/config/postgres/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
 
-  minio:
-    image: quay.io/minio/minio:RELEASE.2024-10-13T13-34-11Z
-    command: server /data --console-address ":9001"
+  rustfs:
+    image: rustfs/rustfs:1.0.3
     environment:
-      MINIO_SERVER_URL: https://minio.127.0.0.1.nip.io
-      MINIO_BROWSER_REDIRECT_URL: https://console.minio.127.0.0.1.nip.io
+      RUSTFS_ACCESS_KEY: rustfs-local
+      RUSTFS_SECRET_KEY: rustfs-local-dev-secret
+      RUSTFS_ADDRESS: ":9000"
+      RUSTFS_CONSOLE_ADDRESS: ":9001"
+      RUSTFS_CONSOLE_ENABLE: "true"
     volumes:
-      - ${PWD}/rw_volumes/minio_volume/:/data/
+      - rustfs_data:/data
     healthcheck:
-        test: ["CMD", "curl", "-f", "http://localhost:9001"]
-        interval: 2s
-        timeout: 2s
-        retries: 5
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9000/health/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
 
 
-  minio_init:
-      image: minio/mc:RELEASE.2024-10-08T09-37-26Z
-      depends_on:
-        minio:
-          condition: service_healthy
-      entrypoint: >
-        /bin/sh -c "
-        /usr/bin/mc config host add myminio http://minio:9000 minioadmin minioadmin;
-        /usr/bin/mc mb myminio/warehouse;
-        exit 0;
-        "
+  rustfs_init:
+    image: rustfs/rc:v0.1.37
+    depends_on:
+      rustfs:
+        condition: service_healthy
+    environment:
+      RUSTFS_ACCESS_KEY: rustfs-local
+      RUSTFS_SECRET_KEY: rustfs-local-dev-secret
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        rc alias set rustfs http://rustfs:9000 "$${RUSTFS_ACCESS_KEY}" "$${RUSTFS_SECRET_KEY}" --region us-east-1 --bucket-lookup path
+        rc bucket create rustfs/warehouse --ignore-existing
 
 
   trino:
@@ -51,12 +57,38 @@ services:
     environment:
       DEBUG: "true"
     depends_on:
-      - minio
-      - postgres
-      - keycloak
-      - opa
-      - caddy
+      rustfs_init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_started
+      keycloak:
+        condition: service_started
+      opa:
+        condition: service_started
+      caddy:
+        condition: service_started
     entrypoint: ["/bin/sh","-eu","/usr/local/bin/start.sh"]
+
+
+  query-ui:
+    build: ./build/trino-query-ui
+    environment:
+      TRINO_URL: https://trino.127.0.0.1.nip.io
+    depends_on:
+      - trino
+
+
+  airbyte-destination:
+    image: airbyte/destination-iceberg:0.2.2
+    profiles: [airbyte]
+    volumes:
+      - ./airbyte:/local:ro
+    depends_on:
+      rustfs_init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_started
+    command: ["write", "--config", "/local/destination.json", "--catalog", "/local/catalog.json"]
 
 
   opa:
@@ -97,6 +129,9 @@ services:
         aliases:
           - auth.127.0.0.1.nip.io
           - trino.127.0.0.1.nip.io
-          - minio.127.0.0.1.nip.io
-          - console.minio.127.0.0.1.nip.io
-          - opa.127.0.0.1.nip.io
+          - query-ui.127.0.0.1.nip.io
+          - rustfs.127.0.0.1.nip.io
+          - console.rustfs.127.0.0.1.nip.io
+
+volumes:
+  rustfs_data:

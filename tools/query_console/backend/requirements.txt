@@ -1,0 +1,5 @@
+Authlib==1.9.5
+Flask==3.1.3
+gunicorn==27.0.0
+joserfc==1.8.0
+requests==2.34.2

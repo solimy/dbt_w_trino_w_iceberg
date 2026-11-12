@@ -1,4 +1,4 @@
-{{ config(materialized='view') }}
+{{ config(materialized=var('platform_materialization', 'view')) }}
 
 with s as (
     select * from {{ ref('stg_sales') }}
@@ -24,4 +24,4 @@ select
     cast(s.amount * coalesce(f.rate, 1.0) as decimal(18,2)) as amount_eur
 from s
 left join fx f
-  on upper(s.currency) = upper(f.base_cur);
+  on upper(s.currency) = upper(f.base_cur)

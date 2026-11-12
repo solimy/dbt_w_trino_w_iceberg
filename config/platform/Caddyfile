@@ -1,0 +1,21 @@
+{
+	local_certs
+	auto_https disable_redirects
+}
+
+https://platform-auth.127.0.0.1.nip.io:{$PLATFORM_PORT} {
+	reverse_proxy keycloak:8080
+}
+
+https://platform-trino.127.0.0.1.nip.io:{$PLATFORM_PORT} {
+	reverse_proxy trino:8080
+}
+
+https://sql.127.0.0.1.nip.io:{$PLATFORM_PORT} {
+	reverse_proxy query-console:8080
+}
+
+http://:8081 {
+	root * /bundles
+	file_server
+}

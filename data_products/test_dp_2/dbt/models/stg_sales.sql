@@ -1,4 +1,4 @@
-{{ config(materialized='view') }}
+{{ config(materialized=var('platform_materialization', 'view')) }}
 
 with raw as (
     select
@@ -23,4 +23,4 @@ with_country as (
       on r.country_code = c.country_code
 )
 
-select * from with_country;
+select * from with_country

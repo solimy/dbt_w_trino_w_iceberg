@@ -1,0 +1,21 @@
+{
+  "teams": {
+    "commerce": {"maintainers": [], "members": []},
+    "finance": {"maintainers": [], "members": []}
+  },
+  "domains": {
+    "ventes": {"owner_team": "commerce"}
+  },
+  "products": {
+    "ventes/commandes": {
+      "dbt_project": "data_products/test_dp_2/dbt",
+      "outputs": {
+        "mart_country_daily_sales_eur": {
+          "reader_teams": ["finance"],
+          "masked_columns": ["country_name"]
+        }
+      }
+    }
+  },
+  "consumer_team": "finance"
+}

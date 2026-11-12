@@ -22,8 +22,8 @@ Many choices I made in this story are not the best choices for a production setu
 - Trino Connector : it is the connector that Trino uses to read and write data. It is the implementation of the Trino connector API.
 - Iceberg : it is a table format, combination of a metadata store and data files.
 - Iceberg Catalog : it is where the metadata of the Iceberg tables is stored.
-- MinIO Bucket : 
-- MinIO S3 Uri
+- S3 bucket : a named container for objects.
+- S3 URI : the address of a bucket or object, such as `s3://warehouse`.
 
 # What is Trino?
 
@@ -51,68 +51,13 @@ When a query is submitted to Iceberg, the Iceberg metadata store is queried to r
 
 As stated in the simplified explanation of Trino and Iceberg, Trino is a query engine and Iceberg is a table format. In order to work, both need a storage layer to store and retrieve the data. So that we can use Iceberg, we also need a metadata store to store the metadata of the tables.
 
-For this setup, I chose MinIO as the storage layer and Postgres as the metadata store.
+The original setup used MinIO and Postgres. The current Docker Compose setup uses RustFS for S3-compatible object storage and Postgres for the Iceberg catalog.
 
-To make deployment easy, I chose to use docker-compose to deploy the services.
+## Setting up RustFS with Docker Compose
 
-## What is MinIO?
+The `rustfs` service stores objects in a named Docker volume. The `rustfs_init` service waits for the S3 API to be ready and creates the `warehouse` bucket. Trino starts after that initialization succeeds and uses `s3://warehouse` to store Iceberg files.
 
-MinIO is an open-source object storage server that is compatible with Amazon S3. It is designed for high performance and can store large amounts of data in a distributed manner. MinIO is optimized for cloud storage systems like Amazon S3, Google Cloud Storage, and Azure Blob Storage.
-
-It is also very easy to set up and use locally with Docker.
-
-## Setting up MinIO with Docker Compose
-
-To set up MinIO with Docker Compose, we need to define a service in the `docker-compose.yml` file that specifies the MinIO image, the ports to expose, the volumes to mount, and the healthcheck to perform.
-
-First, because we will be mounting a volume to store the data, we need to create a directory to store the data. We will create a directory called `minio_volume` in the root directory of the project.
-
-
-```bash
-mkdir minio_volume
-
-## clean up command
-# rm -rf $(find .. -path '../minio_volume/*')
-```
-
-Once its done, we can define the MinIO service in the `docker-compose.yml` file in the root directory of the project.
-
-```yaml
-# docker-compose.yml
-services:
-
-  #postgres:...
-
-  minio:
-    image: quay.io/minio/minio:RELEASE.2024-10-13T13-34-11Z
-    command: server /data --console-address ":9001"
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    volumes:
-      - ${PWD}/minio_volume/:/data/
-    healthcheck:
-        test: ["CMD", "curl", "-f", "http://localhost:9001"]
-        interval: 2s
-        timeout: 2s
-        retries: 5
-
-  minio_init:
-      image: minio/mc:RELEASE.2024-10-08T09-37-26Z
-      depends_on:
-        minio:
-          condition: service_healthy
-      entrypoint: >
-        /bin/sh -c "
-        /usr/bin/mc config host add myminio http://minio:9000 minioadmin minioadmin;
-        /usr/bin/mc mb myminio/warehouse;
-        exit 0;
-        "
-
-  #trino:...
-```
-
-> **`Remark`** : the `minio_init` service is used to create a bucket in MinIO. The bucket is called `warehouse`. If we didn't create the bucket, we would have to create it manually in the MinIO console, because Trino needs a bucket to store the Iceberg tables.
+See the [setup and migration instructions](../README.md) for the current commands.
 
 ## The Iceberg metadata store : Postgres
 

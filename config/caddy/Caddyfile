@@ -1,17 +1,22 @@
 {
   # Local certificates signed by Caddy’s internal CA
   local_certs
+
+  debug
+  log {
+    format console
+    level DEBUG
+  }
 }
 
-# ---------- MinIO ----------
-minio.127.0.0.1.nip.io {
-  encode gzip
-  reverse_proxy minio:9000
+# ---------- RustFS ----------
+rustfs.127.0.0.1.nip.io {
+  reverse_proxy rustfs:9000
 }
 
-console.minio.127.0.0.1.nip.io {
+console.rustfs.127.0.0.1.nip.io {
   encode gzip
-  reverse_proxy minio:9001
+  reverse_proxy rustfs:9001
 }
 
 # ---------- Trino ----------
@@ -20,14 +25,37 @@ trino.127.0.0.1.nip.io {
   reverse_proxy trino:8080
 }
 
+# ---------- Trino Query UI ----------
+query-ui.127.0.0.1.nip.io {
+  encode gzip
+
+  @trino path /v1* /oauth2* /ui/api/*
+  reverse_proxy @trino trino:8080 {
+    transport http {
+      read_timeout  1h
+      write_timeout 1h
+      keepalive     30s
+    }
+
+    # Preserve correct host/forwarding
+    header_up X-Forwarded-Host {host}
+    header_up X-Forwarded-Proto https
+    header_up X-Forwarded-Port 443
+
+    # Fix Trino → Query UI redirect
+    header_down Location {http.reverse_proxy.upstream.hostport}/oauth2/callback
+  }
+
+  @root path /
+  redir @root /query/ 301
+
+  reverse_proxy query-ui:4173
+}
+
+
+
 # ---------- Keycloak ----------
 auth.127.0.0.1.nip.io {
   encode gzip
   reverse_proxy keycloak:8080
-}
-
-# ---------- OPA ----------
-opa.127.0.0.1.nip.io {
-  encode gzip
-  reverse_proxy opa:8181
 }

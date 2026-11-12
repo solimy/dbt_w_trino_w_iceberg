@@ -1,7 +1,7 @@
 {
     "catalog_config": {
         "catalog_type": "Jdbc",
-        "jdbc_url": "jdbc:postgresql://localhost:5432/metastore_db",
+        "jdbc_url": "jdbc:postgresql://postgres:5432/metastore_db",
         "database": "airbyte",
         "username": "admin",
         "password": "admin",
@@ -10,10 +10,10 @@
     },
     "storage_config": {
         "storage_type": "S3",
-        "access_key_id": "minioadmin",
-        "secret_access_key": "minioadmin",
-        "s3_endpoint": "http://localhost:9000",
-        "s3_bucket_region": "eu-west-1",
+        "access_key_id": "rustfs-local",
+        "secret_access_key": "rustfs-local-dev-secret",
+        "s3_endpoint": "http://rustfs:9000",
+        "s3_bucket_region": "us-east-1",
         "s3_warehouse_uri": "s3://warehouse"
     },
     "format_config": {

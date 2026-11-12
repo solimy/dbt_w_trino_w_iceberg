@@ -1,0 +1,88 @@
+#!/bin/sh
+set -eu
+
+cd "$(dirname "$0")/.."
+: "${PLATFORM_SECRET:?Set PLATFORM_SECRET to a persistent random secret for this project}"
+export PLATFORM_SECRET
+export PLATFORM_REVISION="${PLATFORM_REVISION:-$(git rev-parse HEAD)}"
+export PYTHONDONTWRITEBYTECODE=1
+
+derive_secret() {
+    python3 -c 'import os, sys; from tools.data_product_manager.src.platform_manifest import secret_for; print(secret_for(os.environ["PLATFORM_SECRET"], sys.argv[1]))' "$1"
+}
+
+PLATFORM_BOOTSTRAP_SECRET="$(derive_secret platform-bootstrap)"
+PLATFORM_TRINO_SECRET="$(derive_secret trino)"
+PLATFORM_QUERY_CONSOLE_SECRET="$(derive_secret query-console)"
+PLATFORM_TRINO_INTERNAL_SECRET="$(derive_secret trino-internal)"
+PLATFORM_POSTGRES_SECRET="$(derive_secret postgres)"
+PLATFORM_STORAGE_DEV_SECRET="$(derive_secret rustfs-dev)"
+PLATFORM_STORAGE_PRD_SECRET="$(derive_secret rustfs-prd)"
+export PLATFORM_BOOTSTRAP_SECRET PLATFORM_TRINO_SECRET PLATFORM_TRINO_INTERNAL_SECRET PLATFORM_QUERY_CONSOLE_SECRET
+export PLATFORM_POSTGRES_SECRET PLATFORM_STORAGE_DEV_SECRET PLATFORM_STORAGE_PRD_SECRET
+
+config_digest() {
+    python3 -c 'import hashlib, pathlib, sys; print(hashlib.sha256(b"".join(hashlib.sha256(pathlib.Path(name).read_bytes()).digest() for name in sys.argv[1:])).hexdigest())' "$@"
+}
+
+PLATFORM_CADDY_CONFIG="$(config_digest config/platform/Caddyfile)"
+PLATFORM_OPA_CONFIG="$(config_digest config/platform/opa-server.yml config/platform/opa-api.rego)"
+PLATFORM_TRINO_CONFIG="$(config_digest config/platform/trino/config.properties config/platform/trino/catalog/*.properties config/trino/access-control.properties config/trino/start.sh)"
+export PLATFORM_CADDY_CONFIG PLATFORM_OPA_CONFIG PLATFORM_TRINO_CONFIG
+
+if [ "${1:-}" = smoke ]; then
+    export PLATFORM_PROJECT="${PLATFORM_PROJECT:-data-platform-smoke}"
+    export PLATFORM_PORT="${PLATFORM_PORT:-8444}"
+    case "$PLATFORM_PROJECT" in
+        data-platform-smoke*) ;;
+        *)
+            echo "Smoke testing temporarily changes access. Use a data-platform-smoke project." >&2
+            exit 2
+            ;;
+    esac
+fi
+
+compose() {
+    docker compose -f compose.platform.yml -p "${PLATFORM_PROJECT:-data-platform}" "$@"
+}
+
+check_running_config() {
+    container="$(compose ps -q "$1")"
+    if [ -n "$container" ] && [ "$(docker inspect --format '{{index .Config.Labels "io.data-platform.config"}}' "$container")" = "$2" ]; then
+        return 0
+    fi
+    echo "$1 is stopped or running a different configuration" >&2
+    return 2
+}
+
+case "${1:-}" in
+    apply|smoke)
+        compose up -d --build query-console
+        compose run --rm -T --build platform "$@"
+        if [ "$1" = smoke ]; then
+            compose run --rm -T --no-deps --build console-browser
+        fi
+        ;;
+    plan)
+        compose run --rm -T --no-deps --build platform "$@"
+        ;;
+    drift)
+        platform_drift=0
+        check_running_config caddy "$PLATFORM_CADDY_CONFIG" || platform_drift=2
+        check_running_config opa "$PLATFORM_OPA_CONFIG" || platform_drift=2
+        check_running_config trino "$PLATFORM_TRINO_CONFIG" || platform_drift=2
+        if [ -z "$(compose ps -q query-console)" ]; then
+            echo "query-console is stopped" >&2
+            platform_drift=2
+        fi
+        compose run --rm -T --no-deps --build platform "$@"
+        exit "$platform_drift"
+        ;;
+    ps|logs|down|config)
+        compose "$@"
+        ;;
+    *)
+        echo "Usage: tools/platform apply|smoke|plan|drift|ps|logs|down|config" >&2
+        exit 2
+        ;;
+esac

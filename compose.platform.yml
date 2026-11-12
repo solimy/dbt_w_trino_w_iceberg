@@ -1,0 +1,205 @@
+x-rustfs: &rustfs
+  image: rustfs/rustfs:1.0.3
+  healthcheck:
+    test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9000/health/ready"]
+    interval: 3s
+    timeout: 3s
+    retries: 20
+
+services:
+  postgres:
+    image: postgres:13.16
+    environment:
+      POSTGRES_DB: metastore_db
+      POSTGRES_USER: iceberg
+      POSTGRES_PASSWORD: ${PLATFORM_POSTGRES_SECRET:?run tools/platform}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./config/postgres/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "iceberg", "-d", "metastore_db"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  rustfs-dev:
+    <<: *rustfs
+    environment:
+      RUSTFS_ACCESS_KEY: trino-dev
+      RUSTFS_SECRET_KEY: ${PLATFORM_STORAGE_DEV_SECRET:?run tools/platform}
+    volumes:
+      - rustfs_dev:/data
+
+  rustfs-prd:
+    <<: *rustfs
+    environment:
+      RUSTFS_ACCESS_KEY: trino-prd
+      RUSTFS_SECRET_KEY: ${PLATFORM_STORAGE_PRD_SECRET:?run tools/platform}
+    volumes:
+      - rustfs_prd:/data
+
+  rustfs_init:
+    image: rustfs/rc:v0.1.37
+    depends_on:
+      rustfs-dev:
+        condition: service_healthy
+      rustfs-prd:
+        condition: service_healthy
+    environment:
+      PLATFORM_STORAGE_DEV_SECRET: ${PLATFORM_STORAGE_DEV_SECRET:?run tools/platform}
+      PLATFORM_STORAGE_PRD_SECRET: ${PLATFORM_STORAGE_PRD_SECRET:?run tools/platform}
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        rc alias set dev http://rustfs-dev:9000 trino-dev "$${PLATFORM_STORAGE_DEV_SECRET}" --region us-east-1 --bucket-lookup path
+        rc alias set prd http://rustfs-prd:9000 trino-prd "$${PLATFORM_STORAGE_PRD_SECRET}" --region us-east-1 --bucket-lookup path
+        rc bucket create dev/warehouse-dev --ignore-existing
+        rc bucket create prd/warehouse-prd --ignore-existing
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.3.3
+    command: [start-dev]
+    environment:
+      KC_BOOTSTRAP_ADMIN_CLIENT_ID: platform-bootstrap
+      KC_BOOTSTRAP_ADMIN_CLIENT_SECRET: ${PLATFORM_BOOTSTRAP_SECRET:?run tools/platform}
+      KC_HOSTNAME: https://platform-auth.127.0.0.1.nip.io:${PLATFORM_PORT:-8443}
+      KC_PROXY_HEADERS: xforwarded
+    volumes:
+      - keycloak_data:/opt/keycloak/data
+
+  caddy:
+    image: caddy:2.9
+    labels:
+      io.data-platform.config: ${PLATFORM_CADDY_CONFIG:?run tools/platform}
+    environment:
+      PLATFORM_PORT: ${PLATFORM_PORT:-8443}
+    ports:
+      - "127.0.0.1:${PLATFORM_PORT:-8443}:${PLATFORM_PORT:-8443}"
+    volumes:
+      - ./config/platform/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - bundles:/bundles:ro
+    networks:
+      default:
+        aliases:
+          - platform-auth.127.0.0.1.nip.io
+          - platform-trino.127.0.0.1.nip.io
+          - sql.127.0.0.1.nip.io
+
+  ca_init:
+    image: caddy:2.9
+    depends_on: [caddy]
+    volumes:
+      - caddy_data:/data:ro
+      - ca:/ca
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        authority=/data/caddy/pki/authorities/local
+        for attempt in $(seq 30); do
+          if [ -s "$$authority/root.crt" ] && [ -s "$$authority/intermediate.crt" ]; then
+            cp "$$authority/root.crt" "$$authority/intermediate.crt" /ca/
+            chmod 0644 /ca/root.crt /ca/intermediate.crt
+            exit 0
+          fi
+          sleep 1
+        done
+        echo "Caddy did not issue its local CA certificates" >&2
+        exit 1
+
+  opa:
+    image: openpolicyagent/opa:1.8.0-istio-static
+    labels:
+      io.data-platform.config: ${PLATFORM_OPA_CONFIG:?run tools/platform}
+    command: [run, --server, --addr, "0.0.0.0:8181", --authorization=basic, --config-file=/etc/opa/config.yml, /etc/opa/api.rego]
+    volumes:
+      - ./config/platform/opa-server.yml:/etc/opa/config.yml:ro
+      - ./config/platform/opa-api.rego:/etc/opa/api.rego:ro
+    depends_on: [caddy]
+
+  trino:
+    image: trinodb/trino:463
+    labels:
+      io.data-platform.config: ${PLATFORM_TRINO_CONFIG:?run tools/platform}
+    environment:
+      TRINO_CA_DIR: /ca
+      PLATFORM_TRINO_SECRET: ${PLATFORM_TRINO_SECRET:?run tools/platform}
+      PLATFORM_POSTGRES_SECRET: ${PLATFORM_POSTGRES_SECRET:?run tools/platform}
+      PLATFORM_STORAGE_DEV_SECRET: ${PLATFORM_STORAGE_DEV_SECRET:?run tools/platform}
+      PLATFORM_STORAGE_PRD_SECRET: ${PLATFORM_STORAGE_PRD_SECRET:?run tools/platform}
+      PLATFORM_ISSUER: https://platform-auth.127.0.0.1.nip.io:${PLATFORM_PORT:-8443}/realms/data-platform
+      PLATFORM_TRINO_INTERNAL_SECRET: ${PLATFORM_TRINO_INTERNAL_SECRET:?run tools/platform}
+    volumes:
+      - ./config/platform/trino/config.properties:/etc/trino/config.properties:ro
+      - ./config/platform/trino/catalog:/etc/trino/catalog:ro
+      - ./config/trino/access-control.properties:/etc/trino/access-control.properties:ro
+      - ./config/trino/start.sh:/usr/local/bin/start.sh:ro
+      - ca:/ca:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rustfs_init:
+        condition: service_completed_successfully
+      ca_init:
+        condition: service_completed_successfully
+      opa:
+        condition: service_started
+      keycloak:
+        condition: service_started
+    entrypoint: ["/bin/sh", "-eu", "/usr/local/bin/start.sh"]
+
+  platform:
+    profiles: [tools]
+    build:
+      context: ./tools/data_product_manager
+    environment:
+      PLATFORM_SECRET: ${PLATFORM_SECRET:?run tools/platform}
+      PLATFORM_LOCAL_USER_PASSWORDS: ${PLATFORM_LOCAL_USER_PASSWORDS:-}
+      PLATFORM_PROJECT: ${PLATFORM_PROJECT:-data-platform}
+      PLATFORM_PORT: ${PLATFORM_PORT:-8443}
+      PLATFORM_REVISION: ${PLATFORM_REVISION:-local}
+    volumes:
+      - .:/repo:ro
+      - platform_state:/state
+      - bundles:/bundles
+      - ca:/ca:ro
+
+  query-console:
+    build:
+      context: ./tools/query_console
+    depends_on:
+      trino:
+        condition: service_started
+      ca_init:
+        condition: service_completed_successfully
+    environment:
+      CONSOLE_PUBLIC_URL: https://sql.127.0.0.1.nip.io:${PLATFORM_PORT:-8443}
+      CONSOLE_ISSUER: https://platform-auth.127.0.0.1.nip.io:${PLATFORM_PORT:-8443}/realms/data-platform
+      CONSOLE_CLIENT_SECRET: ${PLATFORM_QUERY_CONSOLE_SECRET:?run tools/platform}
+      CONSOLE_TRINO_URL: https://platform-trino.127.0.0.1.nip.io:${PLATFORM_PORT:-8443}
+      REQUESTS_CA_BUNDLE: /ca/root.crt
+    volumes:
+      - ca:/ca:ro
+
+  console-browser:
+    profiles: [tools]
+    build:
+      context: ./tools/query_console/tests
+    environment:
+      PLATFORM_SECRET: ${PLATFORM_SECRET:?run tools/platform}
+      PLATFORM_PORT: ${PLATFORM_PORT:-8443}
+    shm_size: 512mb
+    volumes:
+      - .:/repo:ro
+
+volumes:
+  postgres_data:
+  rustfs_dev:
+  rustfs_prd:
+  keycloak_data:
+  caddy_data:
+  ca:
+  bundles:
+  platform_state:

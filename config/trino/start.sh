@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-CA_DIR="/caddy_data/caddy/pki/authorities/local"
+CA_DIR="${TRINO_CA_DIR:-/caddy_data/caddy/pki/authorities/local}"
 ROOT="$CA_DIR/root.crt"
 INT="$CA_DIR/intermediate.crt"
 

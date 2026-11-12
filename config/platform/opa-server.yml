@@ -1,0 +1,10 @@
+services:
+  platform:
+    url: http://caddy:8081
+bundles:
+  platform:
+    service: platform
+    resource: platform.tar.gz
+    polling:
+      min_delay_seconds: 1
+      max_delay_seconds: 2
